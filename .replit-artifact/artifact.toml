@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "AdeegFinder"
+version = "1.0.0"
+id = "artifacts/adeeg-finder"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 18185
+
+[services.development]
+run = "pnpm --filter @workspace/adeeg-finder run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/adeeg-finder", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/adeeg-finder", "run", "serve" ]
+
+[services.env]
+PORT = "18185"
+BASE_PATH = "/"
