@@ -13,12 +13,17 @@ import type { Booking } from "@/lib/types";
 
 type Props = {
   booking:Booking;
+  allBookings: Booking[];
+}
+
+type Props1 ={
+
 };
 
 export function BookingCard({ booking }: Props) {
   const colors = useColors();
   const { user } = useAuth();
-  //const isWorker = user?.role === "worker";
+  
   const counterparty = booking.worker;
 
   return (
@@ -31,13 +36,6 @@ export function BookingCard({ booking }: Props) {
     >
       <Card style={styles.card}>
         <View style={styles.headerRow}>
-          <View style={styles.idChip}>
-            <Text
-              style={[styles.idText, { color: colors.mutedForeground }]}
-            >
-              #{booking.id}
-            </Text>
-          </View>
           <Badge status={booking.status} />
         </View>
 

@@ -64,28 +64,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistAuth = useCallback(
-    async (newToken: string, newUser: User) => {
-      await setToken(newToken);
-      await setStoredUser(newUser);
-      setTokenState(newToken);
-      setUser(newUser);
-    },
-    [],
-  );
+  async (newToken: string, newUser: User) => {
+    setTokenState(newToken);
+    setUser(newUser);
+
+    Promise.all([
+      setToken(newToken),
+      setStoredUser(newUser),
+    ]);
+  },
+  [],
+);
 
   const login = useCallback<AuthContextValue["login"]>(
-    async ({ phone, password }) => {
-      const res = await apiRequest<AuthResponse>("/login", {
-        method: "POST",
-        body: { phone, password },
-        auth: false,
-      });
-      await persistAuth(res.token, res.user);
-      return res.user;
-    },
-    [persistAuth],
-  );
+  async ({ phone, password }: LoginInput) => {
+    const res = await apiRequest<AuthResponse>("/login", {
+      method: "POST",
+      body: { phone, password },
+      auth: false,
+    });
 
+    setTokenState(res.token);
+    setUser(res.user);
+
+    persistAuth(res.token, res.user);
+
+    return res.user;
+  },
+  [persistAuth],
+);
   const register = useCallback<AuthContextValue["register"]>(
     async (input) => {
       const res = await apiRequest<AuthResponse>("/register", {

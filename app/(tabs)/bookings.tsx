@@ -85,10 +85,10 @@ export default function BookingsScreen() {
         ]}
       >
         <Text style={styles.eyebrow}>
-          {isWorker ? "Your assignments" : "Your bookings"}
+          Your bookings
         </Text>
         <Text style={styles.title}>
-          {isWorker ? "Jobs to manage" : "Manage your services"}
+          Manage your services
         </Text>
 
         <ScrollView

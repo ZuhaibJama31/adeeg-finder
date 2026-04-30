@@ -215,7 +215,7 @@ export default function BookingDetailScreen() {
             >
               <Feather name="arrow-left" size={18} color="#FFFFFF" />
             </Pressable>
-            <Text style={styles.headerTitle}>Booking #{id}</Text>
+            
             <View style={{ width: 38 }} />
           </View>
 
@@ -256,7 +256,7 @@ export default function BookingDetailScreen() {
                   <Text
                     style={[styles.partyName, { color: colors.foreground }]}
                   >
-                    {counterparty?.name ?? (isWorker ? "Client" : "")}
+                    {counterparty?.name}
                   </Text>
                   <Text
                     style={[styles.partyRole, { color: colors.mutedForeground }]}

@@ -108,7 +108,7 @@ export default function ProfileScreen() {
           ]}
         >
           <View style={styles.profileRow}>
-            <Avatar name={user?.name} uri={user?.avatar_url} size={72} />
+  
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{user?.name ?? "Guest"}</Text>
               <View style={styles.roleRow}>
