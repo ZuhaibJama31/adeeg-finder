@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "426832202827",
+    "project_id": "adeeg-finder-app",
+    "storage_bucket": "adeeg-finder-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:426832202827:android:69ab86dec6505dec0511ce",
+        "android_client_info": {
+          "package_name": "com.zebbyofficial88.adeegfinder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJZpbII1SwXtvfLGfOCDqjNWRvxZ8PP2A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
