@@ -31,29 +31,9 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async () => {
-    if (submitting) return;
-    setError(null);
-
-    if (!phone.trim() || !password) {
-      setError("Enter your phone number and password.");
-      return;
-    } 
-
-    setSubmitting(true);
-    try {
-      await login({ phone: phone.trim(), password });
-    } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Could not sign you in. Please try again.";
-      setError(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  await login(phone, password);
+  router.replace("/(tabs)");
+};
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
