@@ -8,218 +8,129 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
+ 
 import { AppLogo } from "@/components/AppLogo";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useColors } from "@/hooks/useColors";
-
+ 
+/* ---------------- PHONE VALIDATION ---------------- */
+ 
 const isValidSomaliPhone = (phone: string): boolean => {
-  const pattern =
-    /^(\+252|00252)?(61|62|63|64|65|66|68|69|71|77|90)\d{7}$/;
-
+  const pattern = /^(\+252|00252)?(61|62|63|64|65|66|68|69|71|77|90)\d{7}$/;
   return pattern.test(phone);
 };
-
+ 
 const formatPhoneForApi = (phone: string): string => {
   const cleaned = phone.replace(/\D/g, "");
-
   if (phone.startsWith("+")) return phone;
-
-  if (
-    cleaned.startsWith("252") &&
-    cleaned.length === 12
-  ) {
-    return "+" + cleaned;
-  }
-
-  if (cleaned.length === 9) {
-    return cleaned;
-  }
-
-  return cleaned;
+  if (cleaned.startsWith("252")) return "+" + cleaned;
+  if (cleaned.length === 9) return "+252" + cleaned;
+  return phone;
 };
-
+ 
 export default function RegisterScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-
+ 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [password, setPassword] = useState("");
-
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(
-    null
-  );
-
- const onSubmit = () => {
-  router.push({
-    pathname: "./(auth)/verify-otp",
-    params: {
-      name,
-      phone,
-      password,
-      city,
-      mode: "register",
-    },
-  });
-};
-
+ 
+  /* ---------------- SUBMIT ---------------- */
+ 
+  const onSubmit = async () => {
+    try {
+      setSubmitting(true);
+ 
+      if (!name || !phone || !password) {
+        return Alert.alert("Error", "Fill all required fields.");
+      }
+ 
+      if (!isValidSomaliPhone(phone)) {
+        return Alert.alert("Invalid phone", "Enter a valid Somali number.");
+      }
+ 
+      if (password.length < 6) {
+        return Alert.alert("Weak password", "Password must be at least 6 characters.");
+      }
+ 
+      const formattedPhone = formatPhoneForApi(phone);
+ 
+      router.push({
+        pathname: "/(auth)/verify-otp",
+        params: {
+          name,
+          phone: formattedPhone,
+          password,
+          city,
+          mode: "register",
+        },
+      });
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+ 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.background,
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style="dark" />
-
+ 
       <KeyboardAwareScrollViewCompat
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop:
-              (isWeb
-                ? 67
-                : insets.top) + 8,
-            paddingBottom:
-              (isWeb
-                ? 34
-                : insets.bottom) + 24,
+            paddingTop: (isWeb ? 67 : insets.top) + 8,
+            paddingBottom: (isWeb ? 34 : insets.bottom) + 24,
           },
         ]}
         bottomOffset={32}
         keyboardShouldPersistTaps="handled"
       >
+        {/* HEADER */}
         <View style={styles.headerRow}>
           <Pressable
             onPress={() => router.back()}
             hitSlop={12}
             style={[
               styles.backBtn,
-              {
-                backgroundColor:
-                  colors.card,
-                borderColor:
-                  colors.border,
-              },
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <Feather
-              name="arrow-left"
-              size={18}
-              color={
-                colors.foreground
-              }
-            />
+            <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
-
+ 
           <AppLogo variant="mark" />
         </View>
-
-        <Text
-          style={[
-            styles.title,
-            {
-              color:
-                colors.foreground,
-            },
-          ]}
-        >
+ 
+        {/* TITLE */}
+        <Text style={[styles.title, { color: colors.foreground }]}>
           Create your account
         </Text>
-
-        <Text
-          style={[
-            styles.subtitle,
-            {
-              color:
-                colors.mutedForeground,
-            },
-          ]}
-        >
-          Verify your phone with OTP
-          before creating account.
+ 
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          Verify your phone with OTP before creating account.
         </Text>
-
-        <View
-          style={[
-            styles.infoBanner,
-            {
-              backgroundColor:
-                colors.accent,
-              borderRadius:
-                colors.radius - 4,
-              marginTop: 20,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.infoIcon,
-              {
-                backgroundColor:
-                  colors.primary,
-              },
-            ]}
-          >
-            <Feather
-              name="shield"
-              size={14}
-              color="#fff"
-            />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text
-              style={[
-                styles.infoTitle,
-                {
-                  color:
-                    colors.primary,
-                },
-              ]}
-            >
-              Secure Registration
-            </Text>
-
-            <Text
-              style={[
-                styles.infoDesc,
-                {
-                  color:
-                    colors.foreground,
-                },
-              ]}
-            >
-              We verify your phone
-              number before account
-              creation.
-            </Text>
-          </View>
-        </View>
-
-        <View
-          style={{
-            gap: 14,
-            marginTop: 20,
-          }}
-        >
+ 
+        {/* INPUTS */}
+        <View style={{ gap: 14, marginTop: 20 }}>
           <Input
             label="Full name"
             placeholder="Your name"
             icon="user"
-            autoCapitalize="words"
             value={name}
             onChangeText={setName}
           />
-
+ 
           <Input
             label="Phone number"
             placeholder="612345678"
@@ -228,7 +139,7 @@ export default function RegisterScreen() {
             value={phone}
             onChangeText={setPhone}
           />
-
+ 
           <Input
             label="City (optional)"
             placeholder="Garoowe"
@@ -236,7 +147,7 @@ export default function RegisterScreen() {
             value={city}
             onChangeText={setCity}
           />
-
+ 
           <Input
             label="Password"
             placeholder="At least 6 characters"
@@ -244,13 +155,11 @@ export default function RegisterScreen() {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
-            errorText={error || undefined}
           />
         </View>
-
-        <View
-          style={{ marginTop: 24 }}
-        >
+ 
+        {/* BUTTON */}
+        <View style={{ marginTop: 24 }}>
           <Button
             label="Continue to OTP"
             onPress={onSubmit}
@@ -259,37 +168,16 @@ export default function RegisterScreen() {
             iconPosition="right"
           />
         </View>
-
+ 
+        {/* FOOTER */}
         <View style={styles.footer}>
-          <Text
-            style={[
-              styles.footerText,
-              {
-                color:
-                  colors.mutedForeground,
-              },
-            ]}
-          >
-            Already have an
-            account?{" "}
+          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
+            Already have an account?{" "}
           </Text>
-
-          <Link
-            href="/(auth)/login"
-            asChild
-          >
-            <Pressable
-              hitSlop={6}
-            >
-              <Text
-                style={[
-                  styles.footerLink,
-                  {
-                    color:
-                      colors.secondary,
-                  },
-                ]}
-              >
+ 
+          <Link href="/(auth)/login" asChild>
+            <Pressable hitSlop={6}>
+              <Text style={[styles.footerLink, { color: colors.secondary }]}>
                 Sign in
               </Text>
             </Pressable>
@@ -299,7 +187,7 @@ export default function RegisterScreen() {
     </View>
   );
 }
-
+ 
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
@@ -308,8 +196,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     marginBottom: 24,
   },
   backBtn: {
@@ -321,42 +208,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   title: {
-    fontFamily:
-      "Inter_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 26,
     letterSpacing: -0.6,
   },
   subtitle: {
-    fontFamily:
-      "Inter_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 14,
     lineHeight: 20,
     marginTop: 6,
-  },
-  infoBanner: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  infoIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoTitle: {
-    fontFamily:
-      "Inter_700Bold",
-    fontSize: 13,
-  },
-  infoDesc: {
-    fontFamily:
-      "Inter_400Regular",
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 4,
   },
   footer: {
     marginTop: 28,
@@ -365,13 +225,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   footerText: {
-    fontFamily:
-      "Inter_500Medium",
+    fontFamily: "Inter_500Medium",
     fontSize: 13,
   },
   footerLink: {
-    fontFamily:
-      "Inter_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 13,
   },
 });

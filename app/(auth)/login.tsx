@@ -8,36 +8,74 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
+ 
 import { AppLogo } from "@/components/AppLogo";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { ApiError } from "@/lib/api";
-
+ 
+/* ---------------- PHONE VALIDATION ---------------- */
+ 
+const isValidSomaliPhone = (phone: string): boolean => {
+  const pattern = /^(\+252|00252)?(61|62|63|64|65|66|68|69|71|77|90)\d{7}$/;
+  return pattern.test(phone);
+};
+ 
+const formatPhoneForApi = (phone: string): string => {
+  const cleaned = phone.replace(/\D/g, "");
+  if (phone.startsWith("+")) return phone;
+  if (cleaned.startsWith("252")) return "+" + cleaned;
+  if (cleaned.length === 9) return "+252" + cleaned;
+  return phone;
+};
+ 
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { login } = useAuth();
-
+ 
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+ 
+  /* ---------------- SUBMIT ---------------- */
+ 
   const onSubmit = async () => {
-  await login(phone, password);
-  router.replace("/(tabs)");
-};
-
+    try {
+      setSubmitting(true);
+ 
+      if (!phone) {
+        return Alert.alert("Error", "Please enter your phone number.");
+      }
+ 
+      if (!isValidSomaliPhone(phone)) {
+        return Alert.alert("Invalid phone", "Enter a valid Somali phone number.");
+      }
+ 
+      const formattedPhone = formatPhoneForApi(phone);
+ 
+      // Navigate to OTP screen with login mode
+      router.push({
+        pathname: "/(auth)/verify-otp",
+        params: {
+          phone: formattedPhone,
+          mode: "login",
+        },
+      });
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+ 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style="dark" />
+ 
       <KeyboardAwareScrollViewCompat
         contentContainerStyle={[
           styles.content,
@@ -49,61 +87,60 @@ export default function LoginScreen() {
         bottomOffset={32}
         keyboardShouldPersistTaps="handled"
       >
+        {/* HEADER */}
         <View style={styles.headerRow}>
           <Pressable
-           onPress={() => router.replace("/(auth)/welcome")}
+            onPress={() => router.replace("/(auth)/welcome")}
             hitSlop={12}
-            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.backBtn,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
           >
             <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
+ 
           <AppLogo variant="mark" />
         </View>
-
+ 
+        {/* TITLE */}
         <Text style={[styles.title, { color: colors.foreground }]}>
           Welcome back
         </Text>
+ 
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Sign in to manage your bookings and find trusted help nearby.
+          Sign in using OTP verification.
         </Text>
-
+ 
+        {/* INPUT */}
         <View style={{ gap: 14, marginTop: 28 }}>
           <Input
             label="Phone number"
-            placeholder="e.g. 905454545"
+            placeholder="e.g. 612345678"
             keyboardType="phone-pad"
-            autoCapitalize="none"
-            autoComplete="tel"
-            icon="phone"
             value={phone}
             onChangeText={setPhone}
-          />
-          <Input
-            label="Password"
-            placeholder="Enter your password"
-            secureTextEntry
-            autoCapitalize="none"
-            icon="lock"
-            value={password}
-            onChangeText={setPassword}
-            errorText={error ?? undefined}
+            icon="phone"
           />
         </View>
-
+ 
+        {/* BUTTON */}
         <View style={{ marginTop: 28 }}>
           <Button
-            label="Sign in"
+            label="Continue"
             onPress={onSubmit}
             loading={submitting}
             icon="arrow-right"
             iconPosition="right"
           />
         </View>
-
+ 
+        {/* FOOTER */}
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
             New to AdeegFinder?{" "}
           </Text>
+ 
           <Link href="/(auth)/register" asChild>
             <Pressable hitSlop={6}>
               <Text style={[styles.footerLink, { color: colors.secondary }]}>
@@ -116,7 +153,9 @@ export default function LoginScreen() {
     </View>
   );
 }
-
+ 
+/* ---------------- STYLES ---------------- */
+ 
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
@@ -162,3 +201,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
+ 
