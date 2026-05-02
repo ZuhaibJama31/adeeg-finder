@@ -12,21 +12,21 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
- 
-import { signInWithPhoneNumber } from "firebase/auth";
- 
+
+// ✅ Use @react-native-firebase/auth — handles reCAPTCHA natively, no modal needed
+import RNFirebaseAuth from "@react-native-firebase/auth";
+
 import { AppLogo } from "@/components/AppLogo";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { auth } from "@/src/firebase";
- 
+
 export default function VerifyOtp() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
- 
+
   const params = useLocalSearchParams<{
     phone: string;
     name?: string;
@@ -34,29 +34,28 @@ export default function VerifyOtp() {
     password?: string;
     mode: "login" | "register";
   }>();
- 
+
   const { firebaseLogin } = useAuth();
- 
+
   const [code, setCode] = useState("");
   const [confirmation, setConfirmation] = useState<any>(null);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
- 
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
- 
-  /* ---------------- AUTO-SEND OTP ON MOUNT ---------------- */
- 
+
+  /* ---------------- AUTO-SEND ON MOUNT ---------------- */
+
   useEffect(() => {
     sendOtp();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
- 
-  /* ---------------- COUNTDOWN TIMER ---------------- */
- 
+
+  /* ---------------- COUNTDOWN ---------------- */
+
   const startCountdown = () => {
     setCountdown(60);
     timerRef.current = setInterval(() => {
@@ -69,45 +68,45 @@ export default function VerifyOtp() {
       });
     }, 1000);
   };
- 
+
   /* ---------------- SEND OTP ---------------- */
- 
+
   const sendOtp = async () => {
     try {
       setSendingOtp(true);
- 
-      const confirmationResult = await signInWithPhoneNumber(auth, params.phone);
- 
+
+      // @react-native-firebase handles reCAPTCHA silently — no extra args needed
+      const confirmationResult = await RNFirebaseAuth().signInWithPhoneNumber(
+        params.phone
+      );
+
       setConfirmation(confirmationResult);
-      setOtpSent(true);
       startCountdown();
- 
-      Alert.alert("OTP Sent", `A verification code was sent to ${params.phone}`);
+      Alert.alert("OTP Sent", `Verification code sent to ${params.phone}`);
     } catch (e: any) {
       Alert.alert("Failed to send OTP", e.message);
     } finally {
       setSendingOtp(false);
     }
   };
- 
+
   /* ---------------- VERIFY OTP ---------------- */
- 
+
   const verifyOtp = async () => {
     if (!code || code.length < 4) {
       return Alert.alert("Invalid code", "Please enter the OTP you received.");
     }
- 
+
     if (!confirmation) {
-      return Alert.alert("No OTP sent", "Please request the OTP first.");
+      return Alert.alert("Error", "Please request OTP first.");
     }
- 
+
     try {
       setVerifyingOtp(true);
- 
+
       const result = await confirmation.confirm(code);
       const idToken = await result.user.getIdToken();
- 
-      // firebaseLogin calls /firebase-login on Laravel and saves token + user
+
       await firebaseLogin({
         idToken,
         name: params.name,
@@ -116,7 +115,7 @@ export default function VerifyOtp() {
         password: params.password,
         mode: params.mode,
       });
- 
+
       router.replace("/(tabs)");
     } catch (e: any) {
       Alert.alert("Invalid OTP", e.message);
@@ -124,13 +123,13 @@ export default function VerifyOtp() {
       setVerifyingOtp(false);
     }
   };
- 
+
   /* ---------------- RENDER ---------------- */
- 
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style="dark" />
- 
+
       <KeyboardAwareScrollViewCompat
         contentContainerStyle={[
           styles.content,
@@ -154,22 +153,22 @@ export default function VerifyOtp() {
           >
             <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
- 
+
           <AppLogo variant="mark" />
         </View>
- 
+
         {/* TITLE */}
         <Text style={[styles.title, { color: colors.foreground }]}>
           Verify your number
         </Text>
- 
+
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           Enter the 6-digit code sent to{"\n"}
           <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>
             {params.phone}
           </Text>
         </Text>
- 
+
         {/* OTP INPUT */}
         <View style={{ marginTop: 32 }}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>
@@ -192,7 +191,7 @@ export default function VerifyOtp() {
             placeholderTextColor={colors.mutedForeground}
           />
         </View>
- 
+
         {/* VERIFY BUTTON */}
         <View style={{ marginTop: 20 }}>
           <Button
@@ -203,7 +202,7 @@ export default function VerifyOtp() {
             iconPosition="right"
           />
         </View>
- 
+
         {/* RESEND */}
         <View style={styles.resendRow}>
           {countdown > 0 ? (
@@ -225,9 +224,9 @@ export default function VerifyOtp() {
     </View>
   );
 }
- 
+
 /* ---------------- STYLES ---------------- */
- 
+
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
@@ -286,4 +285,3 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
- 
