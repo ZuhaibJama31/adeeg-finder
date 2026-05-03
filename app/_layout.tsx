@@ -28,30 +28,50 @@ const queryClient = new QueryClient({
 });
 
 function AuthGate() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-  if (isLoading) return;
+    if (isLoading) return;
 
-  const inAuthGroup = segments[0] === "(auth)";
-  const inTabsGroup = segments[0] === "(tabs)";
+    const inAuthGroup  = segments[0] === "(auth)";
+    const inAdminGroup = segments[0] === "(admin)";
+    const inTabsGroup  = segments[0] === "(tabs)";
 
-  // not logged in → ALWAYS force auth
-  if (!isAuthenticated && !inAuthGroup) {
-    router.replace("/(auth)/welcome");
-  }
+    const isAdmin = user?.role === "admin";
 
-  
-  if (isAuthenticated && inAuthGroup) {
-    router.replace("/(tabs)");
-  }
-}, [isAuthenticated, isLoading, segments]);
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace("/(auth)/welcome");
+      return;
+    }
+
+    if (isAuthenticated) {
+      if (inAuthGroup) {
+        // Just logged in — send to the right place
+        router.replace(isAdmin ? "/(admin)/dashboard" : "/(tabs)");
+        return;
+      }
+
+      // Admin trying to access regular tabs → kick to admin
+      if (isAdmin && inTabsGroup) {
+        router.replace("/(admin)/dashboard");
+        return;
+      }
+
+      // Non-admin trying to access admin → kick to tabs
+      if (!isAdmin && inAdminGroup) {
+        router.replace("/(tabs)");
+        return;
+      }
+    }
+  }, [isAuthenticated, isLoading, user, segments]);
+
   return (
     <Stack screenOptions={{ headerShown: false, headerBackTitle: "Back" }}>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)"  options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)"  options={{ headerShown: false }} />
+      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
       <Stack.Screen
         name="category/[id]"
         options={{ headerShown: true, title: "Category" }}
