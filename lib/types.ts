@@ -61,6 +61,7 @@ export type Worker = {
 
   rating?: number;
   bio?: string | null;
+  profile_picture?: string | null;
   experience_years?: number;
   is_available?: boolean;
 };

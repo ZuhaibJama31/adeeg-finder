@@ -41,12 +41,6 @@ export function WorkerCard({ worker, onPress }: Props) {
       <Card style={styles.card}>
         <View style={styles.row}>
 
-         
-          <Avatar
-            name={worker.user?.name}
-            uri={worker.user?.avatar_url}
-            size={56}
-          />
 
           <View style={styles.body}>
 
