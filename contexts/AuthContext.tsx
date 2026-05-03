@@ -17,22 +17,28 @@ import type { User } from "@/lib/types";
  
 /* ---------------- TYPES ---------------- */
  
-type FirebaseLoginPayload = {
-  idToken: string;
-  name?: string;
-  phone?: string;
+type LoginPayload = {
+  phone: string;
+  password: string;
+};
+ 
+type RegisterPayload = {
+  name: string;
+  phone: string;
+  password: string;
   city?: string;
-  password?: string;
-  mode?: "login" | "register";
+  role: "client" | "worker";
 };
  
 type AuthContextType = {
   user: User | null;
   token: string | null;
   isLoading: boolean;
- 
-  firebaseLogin: (payload: FirebaseLoginPayload) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (payload: LoginPayload) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
  
 /* ---------------- CONTEXT ---------------- */
@@ -40,8 +46,8 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
  
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUserState] = useState<User | null>(null);
-  const [token, setTokenState] = useState<string | null>(null);
+  const [user, setUserState]      = useState<User | null>(null);
+  const [token, setTokenState]    = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
  
   /* Restore session on app launch */
@@ -60,37 +66,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
  
-  /* ---------------- FIREBASE LOGIN ---------------- */
-  // Called after OTP is verified on the client side.
-  // Sends the Firebase idToken to Laravel which verifies it,
-  // finds-or-creates the user, and returns a Sanctum token.
+  /* ---------------- PERSIST SESSION ---------------- */
  
-  const firebaseLogin = async (payload: FirebaseLoginPayload) => {
-    const res = await apiRequest<{ token: string; user: User }>("/firebase-login", {
+  const persistSession = async (newToken: string, newUser: User) => {
+    await Promise.all([setToken(newToken), setUser(newUser)]);
+    setTokenState(newToken);
+    setUserState(newUser);
+  };
+ 
+  /* ---------------- LOGIN ---------------- */
+ 
+  const login = async (payload: LoginPayload) => {
+    const res = await apiRequest<{ token: string; user: User }>("/login", {
       method: "POST",
       body: {
-        idToken: payload.idToken,
-        name: payload.name,
-        phone: payload.phone,
-        city: payload.city,
-        // password is only used by Laravel to create the account on first register
-        ...(payload.mode === "register" && { password: payload.password }),
+        phone:    payload.phone,
+        password: payload.password,
       },
       auth: false,
     });
  
-    // Persist token and user so the session survives app restarts
-    await Promise.all([setToken(res.token), setUser(res.user)]);
+    await persistSession(res.token, res.user);
+  };
  
-    setTokenState(res.token);
-    setUserState(res.user);
+  /* ---------------- REGISTER ---------------- */
+ 
+  const register = async (payload: RegisterPayload) => {
+    const res = await apiRequest<{ token: string; user: User }>("/register", {
+      method: "POST",
+      body: {
+        name:     payload.name,
+        phone:    payload.phone,
+        password: payload.password,
+        city:     payload.city ?? null,
+        role:     payload.role,
+      },
+      auth: false,
+    });
+ 
+    await persistSession(res.token, res.user);
   };
  
   /* ---------------- LOGOUT ---------------- */
  
   const logout = async () => {
     try {
-      // Tell Laravel to revoke the current token (best-effort)
       await apiRequest("/logout", { method: "POST" });
     } catch {
       // Ignore network errors on logout
@@ -101,8 +121,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
  
+  /* ---------------- REFRESH USER ---------------- */
+ 
+  const refreshUser = async () => {
+    const res = await apiRequest<User>("/me");
+    await setUser(res);
+    setUserState(res);
+  };
+ 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, firebaseLogin, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isAuthenticated: !!user && !!token,
+        login,
+        register,
+        logout,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

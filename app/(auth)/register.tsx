@@ -17,8 +17,7 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useColors } from "@/hooks/useColors";
- 
-/* ---------------- PHONE VALIDATION ---------------- */
+import { useAuth } from "@/contexts/AuthContext";
  
 const isValidSomaliPhone = (phone: string): boolean => {
   const pattern = /^(\+252|00252)?(61|62|63|64|65|66|68|69|71|77|90)\d{7}$/;
@@ -37,14 +36,13 @@ export default function RegisterScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { register } = useAuth();
  
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
- 
-  /* ---------------- SUBMIT ---------------- */
  
   const onSubmit = async () => {
     try {
@@ -64,18 +62,19 @@ export default function RegisterScreen() {
  
       const formattedPhone = formatPhoneForApi(phone);
  
-      router.push({
-        pathname: "/(auth)/verify-otp",
-        params: {
-          name,
-          phone: formattedPhone,
-          password,
-          city,
-          mode: "register",
-        },
+      await register({
+        name,
+        phone: formattedPhone,
+        password,
+        city,
+        role: "client",
       });
+ 
+      // ✅ No router.replace here — AuthGate in _layout.tsx handles
+      // the redirect automatically when isAuthenticated becomes true
+ 
     } catch (e: any) {
-      Alert.alert("Error", e.message);
+      Alert.alert("Registration failed", e.message || "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -118,7 +117,7 @@ export default function RegisterScreen() {
         </Text>
  
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Verify your phone with OTP before creating account.
+          Fill in your details to get started.
         </Text>
  
         {/* INPUTS */}
@@ -161,7 +160,7 @@ export default function RegisterScreen() {
         {/* BUTTON */}
         <View style={{ marginTop: 24 }}>
           <Button
-            label="Continue to OTP"
+            label="Create account"
             onPress={onSubmit}
             loading={submitting}
             icon="arrow-right"
@@ -233,3 +232,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
+ 
