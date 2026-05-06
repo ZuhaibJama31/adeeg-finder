@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +25,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { asArray } from "@/lib/format";
 import type { Category } from "@/lib/types";
+import { categoryIcon } from "@/lib/categoryIcons";
 
 type ApiList<T> = T[] | { data?: T[] };
 
@@ -103,6 +105,7 @@ function CategoryModal({
               placeholder="e.g. Plumbing"
               autoFocus
             />
+            
             <Input
               label="Icon Name (Feather)"
               icon="image"
@@ -159,29 +162,28 @@ function CategoryRow({
   onDelete: () => void;
 }) {
   const colors = useColors();
-  const iconName = (category.icon as any) ?? "grid";
+ const { icon, bg, fg } = categoryIcon(category.name ?? category.name);
 
   return (
     <Card style={styles.catCard} padded={false}>
       <View style={styles.catContent}>
-        <View style={[styles.catIcon, { backgroundColor: colors.accent }]}>
-          <Feather name={iconName} size={20} color={colors.primary} />
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={[styles.catIcon, { backgroundColor: bg }]}>
+          <MaterialCommunityIcons name={icon} size={20} color={fg} />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
           <Text
             style={[styles.catName, { color: colors.foreground }]}
             numberOfLines={1}
           >
             {category.name}
           </Text>
-          {category.description ? (
+          
             <Text
               style={[styles.catDesc, { color: colors.mutedForeground }]}
               numberOfLines={2}
             >
               {category.description}
             </Text>
-          ) : null}
           {typeof category.workers_count === "number" ? (
             <View style={styles.workerCountRow}>
               <Feather

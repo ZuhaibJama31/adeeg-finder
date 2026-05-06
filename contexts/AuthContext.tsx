@@ -14,7 +14,10 @@ import {
 } from "@/lib/api";
  
 import type { User } from "@/lib/types";
- 
+import { setupFCM } from "@/lib/fcm";
+
+
+
 /* ---------------- TYPES ---------------- */
  
 type LoginPayload = {
@@ -77,35 +80,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /* ---------------- LOGIN ---------------- */
  
   const login = async (payload: LoginPayload) => {
-    const res = await apiRequest<{ token: string; user: User }>("/login", {
-      method: "POST",
-      body: {
-        phone:    payload.phone,
-        password: payload.password,
-      },
-      auth: false,
-    });
- 
-    await persistSession(res.token, res.user);
-  };
- 
+  const res = await apiRequest<{ token: string; user: User }>("/login", {
+    method: "POST",
+    body: {
+      phone: payload.phone,
+      password: payload.password,
+    },
+    auth: false,
+  });
+
+  await persistSession(res.token, res.user);
+
+  // ✅ ADD THIS (VERY IMPORTANT)
+  await setupFCM();
+};
   /* ---------------- REGISTER ---------------- */
  
-  const register = async (payload: RegisterPayload) => {
-    const res = await apiRequest<{ token: string; user: User }>("/register", {
-      method: "POST",
-      body: {
-        name:     payload.name,
-        phone:    payload.phone,
-        password: payload.password,
-        city:     payload.city ?? null,
-        role:     payload.role,
-      },
-      auth: false,
-    });
- 
-    await persistSession(res.token, res.user);
-  };
+const register = async (payload: RegisterPayload) => {
+  const res = await apiRequest<{ token: string; user: User }>("/register", {
+    method: "POST",
+    body: {
+      name: payload.name,
+      phone: payload.phone,
+      password: payload.password,
+      city: payload.city ?? null,
+      role: payload.role,
+    },
+    auth: false,
+  });
+
+  await persistSession(res.token, res.user);
+
+  // ✅ ADD THIS
+  await setupFCM();
+};
  
   /* ---------------- LOGOUT ---------------- */
  

@@ -133,11 +133,9 @@ export default function AdminBookingsScreen() {
             <Text style={styles.miniValue}>{stats.active}</Text>
             <Text style={styles.miniLabel}>Active</Text>
           </View>
-          <View style={styles.miniDivider} />
-          <View style={styles.miniStat}>
-            <Text style={styles.miniValue}>${stats.revenue.toFixed(0)}</Text>
-            <Text style={styles.miniLabel}>Revenue</Text>
-          </View>
+          
+          
+          
         </View>
 
         <ScrollView
@@ -278,6 +276,9 @@ function AdminBookingCard({ booking }: { booking: Booking }) {
               </Text>
               <Text style={[styles.partyName, { color: colors.foreground }]} numberOfLines={1}>
                 {booking.client.name}
+              </Text>
+              <Text style={[styles.partyPhone, { color: colors.foreground }]}>
+                {booking.client.phone}
               </Text>
             </View>
           </View>
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   bookingDesc: { fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 18 },
-  partiesRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+  partiesRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 },
   party: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   partyRole: {
     fontFamily: "Inter_500Medium",
@@ -459,6 +460,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   partyName: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  partyPhone: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
   metaRow: {
     flexDirection: "row",
     flexWrap: "wrap",

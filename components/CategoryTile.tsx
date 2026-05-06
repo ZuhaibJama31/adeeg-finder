@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,6 +6,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { categoryIcon } from "@/lib/categoryIcons";
 import type { Category } from "@/lib/types";
+
 
 type Props = {
   category: Category;
@@ -15,6 +16,7 @@ type Props = {
 export function CategoryTile({ category, width = "auto" }: Props) {
   const colors = useColors();
   const cfg = categoryIcon(category.name);
+const { icon, bg, fg } = categoryIcon(category.name ?? category.name);
 
   return (
     <Pressable
@@ -47,7 +49,7 @@ export function CategoryTile({ category, width = "auto" }: Props) {
           { backgroundColor: cfg.bg, borderRadius: colors.radius - 4 },
         ]}
       >
-        <Feather name={cfg.icon} size={22} color={cfg.fg} />
+        <MaterialCommunityIcons name={icon} size={20} color={fg} />
       </View>
       <Text
         style={[styles.label, { color: colors.foreground }]}

@@ -9,7 +9,8 @@ export type User = {
   rating?: number | null;
   bio?: string | null;
   skills?: string[] | string | null;
-  category?: Category | null;
+  category?: Category;
+ 
   category_id?: number | null;
 };
 
@@ -56,9 +57,7 @@ export type Worker = {
   user_id?: number;
 
   user: User;
-
   category?: Category | null;
-
   rating?: number;
   bio?: string | null;
   profile_picture?: string | null;

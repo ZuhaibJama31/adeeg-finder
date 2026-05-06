@@ -1,3 +1,8 @@
+import { useRouter } from "expo-router";
+
+// inside your component:
+const router = useRouter();
+
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -5,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import React, { useMemo } from "react";
 import {
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -152,13 +158,16 @@ export default function AdminDashboardScreen() {
           </Text>
 
           <View style={styles.statsGrid}>
+            <Pressable style={styles.statWrapper} onPress={() => router.push("/(admin)/users")}>
             <StatCard
-              icon="users"
-              label="Total Users"
-              value={isLoading ? "—" : clients.length + workers.length}
-              color={colors.primary}
+            icon="users"
+            label="Total Users"
+            value={isLoading ? "—" : clients.length + workers.length}
+            color={colors.primary}
             />
-            <StatCard
+            </Pressable>
+            
+           <StatCard
               icon="briefcase"
               label="Workers"
               value={isLoading ? "—" : workers.length}
@@ -175,12 +184,6 @@ export default function AdminDashboardScreen() {
               label="Completed"
               value={isLoading ? "—" : completedBookings.length}
               color={colors.success}
-            />
-            <StatCard
-              icon="dollar-sign"
-              label="Revenue"
-              value={isLoading ? "—" : `$${totalRevenue.toFixed(0)}`}
-              color={colors.secondary}
             />
             <StatCard
               icon="calendar"
@@ -348,12 +351,16 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+  flexDirection: "row",
+  flexWrap: "wrap",
+  gap: 10,
+},
+statWrapper: {
+  width: "47%",
+  flexGrow: 1,
+},
   statCard: {
-    width: "47%",
+    
     flexGrow: 1,
     gap: 6,
   },

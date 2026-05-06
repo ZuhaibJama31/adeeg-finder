@@ -3,8 +3,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useMemo, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -45,13 +47,18 @@ function unwrap<T>(val: ApiList<T> | null | undefined): T[] {
 type NormalizedUser = User & {
   _type: "client" | "worker";
   _workerId?: number;
+  _category?: string;
 };
 
 function normalizeClient(u: User): NormalizedUser {
   return { ...u, _type: "client" };
 }
 function normalizeWorker(w: Worker): NormalizedUser {
-  return { ...w.user, _type: "worker", _workerId: w.id };
+  return {
+     ...w.user, _type: "worker",
+      _workerId: w.id,
+      _category: w.category?.name
+    };
 }
 
 type EditForm = {
@@ -59,6 +66,250 @@ type EditForm = {
   phone: string;
   city: string;
 };
+
+type CreateForm = {
+  role: "client" | "worker";
+  name: string;
+  phone: string;
+  city: string;
+  email: string;
+  password: string;
+  category: string;
+};
+
+// ─── Category type ─────────────────────────────────────────────────────────────
+
+type Category = {
+  id: number;
+  name: string;
+  [key: string]: any;
+};
+
+// ─── Photo Picker ─────────────────────────────────────────────────────────────
+
+async function pickImage(): Promise<string | null> {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== "granted") {
+    Alert.alert("Permission required", "Please allow access to your photo library.");
+    return null;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.8,
+    base64: true,
+  });
+  if (result.canceled || !result.assets?.[0]) return null;
+  const asset = result.assets[0];
+  return asset.uri;
+}
+
+// ─── PhotoPickerRow ────────────────────────────────────────────────────────────
+
+function PhotoPickerRow({
+  photoUri,
+  name,
+  onPick,
+  colors,
+}: {
+  photoUri: string | null;
+  name: string;
+  onPick: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <Pressable onPress={onPick} style={styles.photoPickerRow}>
+      <View style={styles.photoPreviewWrap}>
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+        ) : (
+          <View
+            style={[
+              styles.photoPreview,
+              styles.photoPlaceholder,
+              { backgroundColor: "#7C3AED22" },
+            ]}
+          >
+            <Feather name="user" size={22} color="#7C3AED" />
+          </View>
+        )}
+        <View style={[styles.photoBadge, { backgroundColor: "#7C3AED" }]}>
+          <Feather name="camera" size={10} color="#FFF" />
+        </View>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.photoLabel, { color: colors.foreground }]}>
+          {photoUri ? "Change photo" : "Add profile photo"}
+        </Text>
+        <Text style={[styles.photoSub, { color: colors.mutedForeground }]}>
+          Square image recommended · JPG or PNG
+        </Text>
+      </View>
+      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+    </Pressable>
+  );
+}
+
+// ─── CategoryDropdown ─────────────────────────────────────────────────────────
+
+function CategoryDropdown({
+  value,
+  onChange,
+  colors,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const categoriesQ = useQuery<Category[]>({
+    queryKey: ["admin", "categories"],
+    queryFn: () => apiRequest<Category[]>("/admin/categories"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const categories: Category[] = useMemo(() => {
+    const raw = categoriesQ.data;
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    return (raw as any)?.data ?? [];
+  }, [categoriesQ.data]);
+
+  const selectedLabel = useMemo(() => {
+    if (!value) return null;
+    const found = categories.find(
+      (c) => String(c.id) === value || c.name === value
+    );
+    return found?.name ?? value;
+  }, [value, categories]);
+
+  return (
+    <View>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+        Category
+      </Text>
+
+      {/* Trigger */}
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={[
+          styles.dropdownTrigger,
+          {
+            backgroundColor: colors.muted,
+            borderColor: open ? "#7C3AED" : colors.border,
+          },
+        ]}
+      >
+        <Feather name="briefcase" size={16} color={selectedLabel ? "#7C3AED" : colors.mutedForeground} />
+        <Text
+          style={[
+            styles.dropdownTriggerText,
+            { color: selectedLabel ? colors.foreground : colors.mutedForeground },
+          ]}
+          numberOfLines={1}
+        >
+          {selectedLabel ?? "Select a category…"}
+        </Text>
+        {categoriesQ.isLoading ? (
+          <Text style={{ fontSize: 11, color: colors.mutedForeground }}>Loading…</Text>
+        ) : (
+          <Feather
+            name={open ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={colors.mutedForeground}
+          />
+        )}
+      </Pressable>
+
+      {/* Inline dropdown list */}
+      {open && (
+        <View
+          style={[
+            styles.dropdownList,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          {categoriesQ.isLoading ? (
+            <View style={styles.dropdownLoading}>
+              <Text style={[styles.dropdownLoadingText, { color: colors.mutedForeground }]}>
+                Fetching categories…
+              </Text>
+            </View>
+          ) : categoriesQ.isError ? (
+            <View style={styles.dropdownLoading}>
+              <Feather name="alert-circle" size={14} color="#DC2626" />
+              <Text style={[styles.dropdownLoadingText, { color: "#DC2626" }]}>
+                Failed to load categories
+              </Text>
+            </View>
+          ) : categories.length === 0 ? (
+            <View style={styles.dropdownLoading}>
+              <Text style={[styles.dropdownLoadingText, { color: colors.mutedForeground }]}>
+                No categories found
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={{ maxHeight: 400 }}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {categories.map((cat, idx) => {
+                const isSelected = String(cat.id) === value || cat.name === value;
+                const isLast = idx === categories.length - 1;
+                return (
+                  <Pressable
+                    key={cat.id}
+                    onPress={() => {
+                      onChange(String(cat.id));
+                      setOpen(false);
+                    }}
+                    style={[
+                      styles.dropdownItem,
+                      !isLast && {
+                        borderBottomWidth: StyleSheet.hairlineWidth,
+                        borderBottomColor: colors.border,
+                      },
+                      isSelected && { backgroundColor: "#7C3AED11" },
+                    ]}
+                  >
+                    <View style={styles.dropdownItemInner}>
+                      <View
+                        style={[
+                          styles.dropdownDot,
+                          { backgroundColor: isSelected ? "#7C3AED" : colors.muted },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          {
+                            color: isSelected ? "#7C3AED" : colors.foreground,
+                            fontFamily: isSelected ? "Inter_600SemiBold" : "Inter_400Regular",
+                          },
+                        ]}
+                      >
+                        {cat.name}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Feather name="check" size={14} color="#7C3AED" />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
 
 function UserEditModal({
   user,
@@ -75,19 +326,27 @@ function UserEditModal({
     phone: user.phone ?? "",
     city: user.city ?? "",
   });
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const endpoint =
-    user._type === "worker"
-      ? `/admin/workers/${user._workerId ?? user.id}`
-      : `/admin/clients/${user.id}`;
+  const isWorker = user._type === "worker";
+
+  const endpoint = isWorker
+    ? `/admin/workers/${user._workerId ?? user.id}`
+    : `/admin/clients/${user.id}`;
 
   const mutation = useMutation({
-    mutationFn: () =>
-      apiRequest(endpoint, {
-        method: "PUT",
-        body: { name: form.name, phone: form.phone, city: form.city },
-      }),
+    mutationFn: async () => {
+      const body: Record<string, string> = {
+        name: form.name,
+        phone: form.phone,
+        city: form.city,
+      };
+      if (isWorker && photoUri) {
+        body.photo_url = photoUri;
+      }
+      return apiRequest(endpoint, { method: "PUT", body });
+    },
     onSuccess: () => {
       onSaved();
       onClose();
@@ -97,6 +356,11 @@ function UserEditModal({
 
   const set = (key: keyof EditForm) => (val: string) =>
     setForm((f) => ({ ...f, [key]: val }));
+
+  const handlePickPhoto = async () => {
+    const uri = await pickImage();
+    if (uri) setPhotoUri(uri);
+  };
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
@@ -117,7 +381,11 @@ function UserEditModal({
           </View>
 
           <View style={styles.modalAvatar}>
-            <Avatar name={user.name} size={56} />
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.avatarThumb} />
+            ) : (
+              <Avatar name={user.name} size={56} />
+            )}
             <View>
               <Text style={[styles.modalName, { color: colors.foreground }]}>
                 {user.name}
@@ -125,28 +393,29 @@ function UserEditModal({
               <View
                 style={[
                   styles.rolePill,
-                  {
-                    backgroundColor:
-                      user._type === "worker"
-                        ? "#7C3AED22"
-                        : colors.accent,
-                  },
+                  { backgroundColor: isWorker ? "#7C3AED22" : colors.accent },
                 ]}
               >
                 <Text
                   style={[
                     styles.roleText,
-                    {
-                      color:
-                        user._type === "worker" ? "#7C3AED" : colors.primary,
-                    },
+                    { color: isWorker ? "#7C3AED" : colors.primary },
                   ]}
                 >
-                  {user._type === "worker" ? "Worker" : "Client"}
+                  {isWorker ? "Worker" : "Client"}
                 </Text>
               </View>
             </View>
           </View>
+
+          {isWorker && (
+            <PhotoPickerRow
+              photoUri={photoUri}
+              name={form.name}
+              onPick={handlePickPhoto}
+              colors={colors}
+            />
+          )}
 
           <View style={{ gap: 14 }}>
             <Input
@@ -199,6 +468,223 @@ function UserEditModal({
   );
 }
 
+// ─── Create User Modal ────────────────────────────────────────────────────────
+
+function CreateUserModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const colors = useColors();
+  const [form, setForm] = useState<CreateForm>({
+    role: "client",
+    name: "",
+    phone: "",
+    city: "",
+    email: "",
+    password: "",
+    category: "",
+  });
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const endpoint =
+        form.role === "worker" ? "/admin/workers" : "/admin/clients";
+
+        const body: Record<string, string | number> = {
+          name: form.name,
+          phone: form.phone,
+          city: form.city,
+          email: form.email,
+          password: form.password,
+};
+        if (form.role === "worker") {
+          if (photoUri) body.photo_url = photoUri;
+          if (form.category) body.category_id = parseInt(form.category, 10);
+        }
+      return apiRequest(endpoint, { method: "POST", body });
+    },
+    onSuccess: () => {
+      onCreated();
+      onClose();
+    },
+    onError: (e: any) => setError(e?.message ?? "Failed to create user"),
+  });
+
+  const set = (key: keyof CreateForm) => (val: string) =>
+    setForm((f) => ({ ...f, [key]: val }));
+
+  const handlePickPhoto = async () => {
+    const uri = await pickImage();
+    if (uri) setPhotoUri(uri);
+  };
+
+  const isWorker = form.role === "worker";
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ justifyContent: "flex-end", flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                New User
+              </Text>
+              <Pressable onPress={onClose} hitSlop={12}>
+                <Feather name="x" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+
+            {/* Role selector */}
+            <View>
+              <Text
+                style={[styles.fieldLabel, { color: colors.mutedForeground }]}
+              >
+                Role
+              </Text>
+              <View style={styles.roleToggleRow}>
+                {(["client", "worker"] as const).map((role) => {
+                  const active = form.role === role;
+                  return (
+                    <Pressable
+                      key={role}
+                      onPress={() => set("role")(role)}
+                      style={[
+                        styles.roleToggleBtn,
+                        {
+                          backgroundColor: active
+                            ? role === "worker"
+                              ? "#7C3AED"
+                              : colors.primary
+                            : colors.muted,
+                          borderColor: active ? "transparent" : colors.border,
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name={role === "worker" ? "briefcase" : "user"}
+                        size={14}
+                        color={active ? "#FFF" : colors.mutedForeground}
+                      />
+                      <Text
+                        style={[
+                          styles.roleToggleText,
+                          { color: active ? "#FFF" : colors.mutedForeground },
+                        ]}
+                      >
+                        {role === "worker" ? "Worker" : "Client"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Photo picker — workers only */}
+            {isWorker && (
+              <PhotoPickerRow
+                photoUri={photoUri}
+                name={form.name}
+                onPick={handlePickPhoto}
+                colors={colors}
+              />
+            )}
+
+            {/* Fields */}
+            <View style={{ gap: 14 }}>
+              <Input
+                label="Full Name"
+                icon="user"
+                value={form.name}
+                onChangeText={set("name")}
+                placeholder="Full name"
+              />
+              <Input
+                label="Email"
+                icon="mail"
+                value={form.email}
+                onChangeText={set("email")}
+                placeholder="email@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Input
+                label="Password"
+                icon="lock"
+                value={form.password}
+                onChangeText={set("password")}
+                placeholder="Password"
+                secureTextEntry
+              />
+              <Input
+                label="Phone"
+                icon="phone"
+                value={form.phone}
+                onChangeText={set("phone")}
+                placeholder="Phone number"
+                keyboardType="phone-pad"
+              />
+              <Input
+                label="City"
+                icon="map-pin"
+                value={form.city}
+                onChangeText={set("city")}
+                placeholder="City"
+              />
+            </View>
+
+            {/* Category dropdown — workers only */}
+            {isWorker && (
+              <CategoryDropdown
+                value={form.category}
+                onChange={set("category")}
+                colors={colors}
+              />
+            )}
+
+            {error ? (
+              <Text style={[styles.errorText, { color: colors.destructive }]}>
+                {error}
+              </Text>
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <Button
+                label="Cancel"
+                variant="outline"
+                onPress={onClose}
+                style={{ flex: 1 }}
+              />
+              <Button
+                label="Create"
+                onPress={() => mutation.mutate()}
+                loading={mutation.isPending}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── UserRow ──────────────────────────────────────────────────────────────────
+
 function UserRow({
   user,
   onEdit,
@@ -227,13 +713,22 @@ function UserRow({
           >
             {user.phone}
           </Text>
+          
+          {isWorker && (
+              <Text
+              style={[styles.userPhone, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {user._category}
+          </Text>
+            )}
+
+          
           <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
             <View
               style={[
                 styles.rolePill,
-                {
-                  backgroundColor: isWorker ? "#7C3AED22" : colors.accent,
-                },
+                { backgroundColor: isWorker ? "#7C3AED22" : colors.accent },
               ]}
             >
               <Text
@@ -246,20 +741,9 @@ function UserRow({
               </Text>
             </View>
             {user.city ? (
-              <View
-                style={[
-                  styles.rolePill,
-                  { backgroundColor: colors.muted },
-                ]}
-              >
-                <Feather
-                  name="map-pin"
-                  size={9}
-                  color={colors.mutedForeground}
-                />
-                <Text
-                  style={[styles.roleText, { color: colors.mutedForeground }]}
-                >
+              <View style={[styles.rolePill, { backgroundColor: colors.muted }]}>
+                <Feather name="map-pin" size={9} color={colors.mutedForeground} />
+                <Text style={[styles.roleText, { color: colors.mutedForeground }]}>
                   {user.city}
                 </Text>
               </View>
@@ -269,20 +753,14 @@ function UserRow({
         <View style={styles.userActions}>
           <Pressable
             onPress={onEdit}
-            style={[
-              styles.actionBtn,
-              { backgroundColor: colors.accent },
-            ]}
+            style={[styles.actionBtn, { backgroundColor: colors.accent }]}
             hitSlop={6}
           >
             <Feather name="edit-2" size={15} color={colors.primary} />
           </Pressable>
           <Pressable
             onPress={onDelete}
-            style={[
-              styles.actionBtn,
-              { backgroundColor: "#FEE2E2" },
-            ]}
+            style={[styles.actionBtn, { backgroundColor: "#FEE2E2" }]}
             hitSlop={6}
           >
             <Feather name="trash-2" size={15} color="#DC2626" />
@@ -293,6 +771,8 @@ function UserRow({
   );
 }
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function UsersManagementScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -302,6 +782,7 @@ export default function UsersManagementScreen() {
   const [tab, setTab] = useState<TabFilter>("all");
   const [search, setSearch] = useState("");
   const [editTarget, setEditTarget] = useState<NormalizedUser | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const clientsQ = useQuery({
     queryKey: ["admin", "clients"],
@@ -370,6 +851,11 @@ export default function UsersManagementScreen() {
     );
   };
 
+  const handleCreated = () => {
+    qc.invalidateQueries({ queryKey: ["admin", "clients"] });
+    qc.invalidateQueries({ queryKey: ["admin", "workers"] });
+  };
+
   const isLoading = clientsQ.isLoading || workersQ.isLoading;
   const refetch = () => {
     clientsQ.refetch();
@@ -391,6 +877,13 @@ export default function UsersManagementScreen() {
         />
       )}
 
+      {showCreate && (
+        <CreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreated={handleCreated}
+        />
+      )}
+
       <LinearGradient
         colors={[colors.gradientStart, colors.gradientEnd]}
         style={[
@@ -398,8 +891,20 @@ export default function UsersManagementScreen() {
           { paddingTop: (isWeb ? 67 : insets.top) + 14 },
         ]}
       >
-        <Text style={styles.eyebrow}>Admin</Text>
-        <Text style={styles.title}>Users</Text>
+        <View style={styles.headerTopRow}>
+          <View>
+            <Text style={styles.eyebrow}>Admin</Text>
+            <Text style={styles.title}>Users</Text>
+          </View>
+          <Pressable
+            onPress={() => setShowCreate(true)}
+            style={styles.createBtn}
+            hitSlop={8}
+          >
+            <Feather name="user-plus" size={16} color="#FFF" />
+            <Text style={styles.createBtnText}>New</Text>
+          </Pressable>
+        </View>
 
         <View style={[styles.searchBox, { backgroundColor: "#FFFFFF" }]}>
           <Feather name="search" size={17} color={colors.mutedForeground} />
@@ -498,17 +1003,13 @@ export default function UsersManagementScreen() {
           </>
         ) : filtered.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <View
-              style={[styles.emptyIcon, { backgroundColor: colors.accent }]}
-            >
+            <View style={[styles.emptyIcon, { backgroundColor: colors.accent }]}>
               <Feather name="users" size={28} color={colors.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
               {search ? "No matches" : "No users yet"}
             </Text>
-            <Text
-              style={[styles.emptyDesc, { color: colors.mutedForeground }]}
-            >
+            <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
               {search
                 ? "Try a different name or phone number."
                 : "Users will appear here when they register."}
@@ -529,12 +1030,20 @@ export default function UsersManagementScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 18,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+  },
+  headerTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 2,
   },
   eyebrow: {
     fontFamily: "Inter_600SemiBold",
@@ -549,6 +1058,24 @@ const styles = StyleSheet.create({
     fontSize: 26,
     letterSpacing: -0.6,
     marginTop: 2,
+  },
+  createBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    marginBottom: 4,
+  },
+  createBtnText: {
+    fontFamily: "Inter_600SemiBold",
+    color: "#FFF",
+    fontSize: 13,
+    letterSpacing: 0.2,
   },
   searchBox: {
     flexDirection: "row",
@@ -671,6 +1198,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
+  // Modal shared
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -704,6 +1232,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 6,
   },
+  avatarThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
   errorText: {
     fontFamily: "Inter_500Medium",
     fontSize: 13,
@@ -712,5 +1245,129 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: "row",
     gap: 10,
+  },
+  // Photo picker
+  photoPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#7C3AED33",
+    backgroundColor: "#7C3AED08",
+  },
+  photoPreviewWrap: {
+    position: "relative",
+  },
+  photoPreview: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  photoPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  photoLabel: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  photoSub: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+  },
+  // Role toggle (create modal)
+  fieldLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  roleToggleRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  roleToggleBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  roleToggleText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+  },
+  // Category dropdown
+  dropdownTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  dropdownTriggerText: {
+    flex: 1,
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+  },
+  dropdownList: {
+    marginTop: 6,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    overflow: "hidden",
+  },
+  dropdownLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 18,
+  },
+  dropdownLoadingText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  dropdownItemInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  dropdownDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dropdownItemText: {
+    fontSize: 14,
   },
 });

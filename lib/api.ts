@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
  
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  "https://shaqo-api-master-jkif7q.free.laravel.cloud/api";
+  "https://shaqo-api-master-jkif7q.laravel.cloud/api/v1";
  
 const TOKEN_KEY = "auth.token";
 const USER_KEY  = "auth.user";

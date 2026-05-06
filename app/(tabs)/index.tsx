@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -25,6 +26,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { asArray } from "@/lib/format";
 import type { Category, Worker } from "@/lib/types";
+import { categoryIcon } from "@/lib/categoryIcons";
 
 
 type ApiList<T> = T[] | { data?: T[] };
