@@ -16,9 +16,7 @@ type Props = {
   allBookings: Booking[];
 }
 
-type Props1 ={
 
-};
 
 export function BookingCard({ booking }: Props) {
   const colors = useColors();

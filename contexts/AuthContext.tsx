@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  
   /* ---------------- LOGIN ---------------- */
  
-  const login = async (payload: LoginPayload) => {
+const login = async (payload: LoginPayload) => {
   const res = await apiRequest<{ token: string; user: User }>("/login", {
     method: "POST",
     body: {
@@ -91,8 +91,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   await persistSession(res.token, res.user);
 
-  // ✅ ADD THIS (VERY IMPORTANT)
-  await setupFCM();
+  // ✅ SAFE FCM CALL
+  try {
+    await setupFCM();
+  } catch (error) {
+    console.log("FCM setup failed (ignored):", error);
+  }
 };
   /* ---------------- REGISTER ---------------- */
  
@@ -111,17 +115,20 @@ const register = async (payload: RegisterPayload) => {
 
   await persistSession(res.token, res.user);
 
-  // ✅ ADD THIS
-  await setupFCM();
+  // ✅ SAFE FCM CALL
+  try {
+    await setupFCM();
+  } catch (error) {
+    console.log("FCM setup failed (ignored):", error);
+  }
 };
- 
   /* ---------------- LOGOUT ---------------- */
  
   const logout = async () => {
     try {
       await apiRequest("/logout", { method: "POST" });
     } catch {
-      // Ignore network errors on logout
+      
     } finally {
       await Promise.all([setToken(null), setUser(null)]);
       setTokenState(null);

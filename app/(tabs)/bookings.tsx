@@ -51,11 +51,16 @@ export default function BookingsScreen() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
 
-  const query = useQuery({
-    queryKey: ["bookings"],
-    queryFn: () =>
-      apiRequest<Booking[] | { data?: Booking[] }>("/bookings"),
-  });
+  const endpoint =
+  user?.role === "worker"
+    ? "/worker/bookings"
+    : "/client/bookings";
+
+const query = useQuery({
+  queryKey: ["bookings", user?.role],
+  queryFn: () =>
+    apiRequest<Booking[] | { data?: Booking[] }>(endpoint),
+});
 
   const bookings = useMemo(() => unwrap(query.data), [query.data]);
 
@@ -178,7 +183,7 @@ export default function BookingsScreen() {
             }
           />
         ) : (
-          filtered.map((b) => <BookingCard key={b.id} booking={b} />)
+          filtered.map((b) => <BookingCard key={b.id} booking={b} allBookings={[]} />)
         )}
       </ScrollView>
     </View>

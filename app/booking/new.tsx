@@ -39,8 +39,34 @@ export default function NewBookingScreen(){
  };
 
  const mutation = useMutation({
-  mutationFn:()=>apiRequest('/bookings',{method:'POST',body:{worker_id:workerId,description,address,city,scheduled_at:scheduledDate.toISOString()}}),
-  onSuccess:(data:any)=>{queryClient.invalidateQueries({queryKey:['bookings']}); router.replace(`/booking/${data?.booking?.id ?? ''}`)}
+  mutationFn:()=>apiRequest('/client/bookings',{
+    method:'POST',
+    body:{
+      worker_id:workerId,
+      description,
+      address,
+      city,
+      scheduled_at:scheduledDate.toISOString()
+    }
+  }),
+  onSuccess: (data: any) => {
+  console.log("BOOKING RESPONSE:", data);
+
+  queryClient.invalidateQueries({
+    queryKey: ["bookings"],
+  });
+
+  const bookingId =
+    data?.booking?.id ||
+    data?.data?.id ||
+    data?.id;
+
+  if (bookingId) {
+    router.replace(`/booking/${bookingId}`);
+  } else {
+    router.replace("/bookings");
+  }
+},
  });
 
  return <View style={{flex:1,backgroundColor:colors.background}}>

@@ -39,7 +39,7 @@ export default function ProfileScreen() {
   const bookingsQuery = useQuery({
     queryKey: ["bookings"],
     queryFn: () =>
-      apiRequest<Booking[] | { data?: Booking[] }>("/bookings"),
+      apiRequest<Booking[] | { data?: Booking[] }>("/client/bookings"),
   });
 
   const bookings = useMemo(() => unwrap(bookingsQuery.data), [bookingsQuery.data]);

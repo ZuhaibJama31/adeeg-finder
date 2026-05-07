@@ -1,24 +1,34 @@
 import messaging from '@react-native-firebase/messaging';
+import { apiRequest } from './api';
 
-// Request permission
-export async function requestPermission() {
+export async function requestNotificationPermission() {
   const authStatus = await messaging().requestPermission();
 
-  const enabled =
+  return (
     authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-  if (enabled) {
-    console.log('Permission granted');
-  }
+    authStatus === messaging.AuthorizationStatus.PROVISIONAL
+  );
 }
 
-// Get FCM token
-export async function getFCMToken() {
-  await requestPermission();
+export async function setupFCM() {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
 
   const token = await messaging().getToken();
-  console.log('FCM TOKEN:', token);
 
-  return token;
+  if (token) {
+    console.log('FCM TOKEN:', token);
+    await apiRequest('/save-token', {
+      method: 'POST',
+      body: { token },
+    });
+  }
+
+  // If token refreshes, save the new one automatically
+  messaging().onTokenRefresh(async (newToken) => {
+    await apiRequest('/save-token', {
+      method: 'POST',
+      body: { token: newToken },
+    });
+  });
 }

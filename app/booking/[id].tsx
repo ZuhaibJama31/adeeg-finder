@@ -58,7 +58,7 @@ export default function BookingDetailScreen() {
     queryKey: ["booking", id],
     queryFn: () =>
       apiRequest<Booking | { booking?: Booking } | { data?: Booking }>(
-        `/bookings/${id}`,
+        `/client/bookings/${id}`,
       ),
     retry: 0,
   });
@@ -66,7 +66,7 @@ export default function BookingDetailScreen() {
   const listQuery = useQuery({
     queryKey: ["bookings"],
     queryFn: () =>
-      apiRequest<Booking[] | { data?: Booking[] }>("/bookings"),
+      apiRequest<Booking[] | { data?: Booking[] }>("client/bookings"),
     enabled: detailQuery.isError || !unwrapOne(detailQuery.data),
   });
 
@@ -87,7 +87,7 @@ export default function BookingDetailScreen() {
       status: BookingStatus;
       agreed_price?: number;
     }) =>
-      apiRequest(`/bookings/${id}`, {
+      apiRequest(`/client/bookings/${id}`, {
         method: "PUT",
         body: payload,
       }),

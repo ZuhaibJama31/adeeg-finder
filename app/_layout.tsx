@@ -39,9 +39,9 @@ function AuthGate() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inAuthGroup  = segments[0] === "(auth)";
     const inAdminGroup = segments[0] === "(admin)";
-    const inTabsGroup = segments[0] === "(tabs)";
+    const inTabsGroup  = segments[0] === "(tabs)";
 
     const isAdmin = user?.role === "admin";
 
@@ -70,8 +70,8 @@ function AuthGate() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)"  options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)"  options={{ headerShown: false }} />
       <Stack.Screen name="(admin)" options={{ headerShown: false }} />
 
       <Stack.Screen
@@ -122,20 +122,32 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  /* ---------------- FIREBASE FOREGROUND NOTIFICATIONS ---------------- */
+  /* ---------------- FIREBASE NOTIFICATIONS ---------------- */
 
   useEffect(() => {
+    // 1. App is OPEN — Firebase won't auto-popup, so we show alert manually
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       console.log("📩 Foreground Notification:", remoteMessage);
-
       alert(
-        remoteMessage.notification?.title +
+        (remoteMessage.notification?.title ?? "Notification") +
           "\n" +
-          remoteMessage.notification?.body
+          (remoteMessage.notification?.body ?? "")
       );
     });
 
-    return unsubscribe;
+    // 2. App was MINIMIZED — user tapped the notification
+    messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log("📲 Opened from background:", remoteMessage.data);
+    });
+
+    // 3. App was CLOSED — user tapped the notification
+    messaging().getInitialNotification().then(remoteMessage => {
+      if (remoteMessage) {
+        console.log("🚀 Opened from killed state:", remoteMessage.data);
+      }
+    });
+
+    return unsubscribe; // only the foreground listener needs cleanup
   }, []);
 
   if (!fontsLoaded && !fontError) return null;
