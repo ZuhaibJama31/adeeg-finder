@@ -58,8 +58,8 @@ export default function AccountSecurityScreen() {
         method: "PUT",
         body: {
           current_password: currentPassword,
-          password: newPassword,
-          password_confirmation: confirmPassword,
+          new_password: newPassword,
+          confirm_new_password: confirmPassword,
         },
       });
       setSuccess(true);

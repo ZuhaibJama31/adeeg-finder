@@ -19,9 +19,6 @@ import { Input } from "@/components/ui/Input";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 
-
-
- 
 const isValidSomaliPhone = (phone: string): boolean => {
   const pattern = /^(\+252|00252)?(61|62|63|64|65|66|68|69|71|77|90)\d{7}$/;
   return pattern.test(phone);
@@ -58,11 +55,9 @@ export default function LoginScreen() {
       }
  
       const formattedPhone = formatPhoneForApi(phone);
- 
       await login({ phone: formattedPhone, password });
  
-      // ✅ No router.replace here — AuthGate in _layout.tsx handles
-      // the redirect automatically when isAuthenticated becomes true
+      // ✅ AuthGate handles redirect automatically
  
     } catch (e: any) {
       Alert.alert("Login failed", e.message || "Invalid phone or password.");
@@ -86,7 +81,6 @@ export default function LoginScreen() {
         bottomOffset={32}
         keyboardShouldPersistTaps="handled"
       >
-        {/* HEADER */}
         <View style={styles.headerRow}>
           <Pressable
             onPress={() => router.replace("/(auth)/welcome")}
@@ -102,7 +96,6 @@ export default function LoginScreen() {
           <AppLogo variant="mark" />
         </View>
  
-        {/* TITLE */}
         <Text style={[styles.title, { color: colors.foreground }]}>
           Welcome back
         </Text>
@@ -111,7 +104,6 @@ export default function LoginScreen() {
           Sign in to your account.
         </Text>
  
-        {/* INPUTS */}
         <View style={{ gap: 14, marginTop: 28 }}>
           <Input
             label="Phone number"
@@ -132,18 +124,6 @@ export default function LoginScreen() {
           />
         </View>
  
-        {/* FORGOT PASSWORD
-        <View style={{ alignItems: "flex-end", marginTop: 10 }}>
-          <Link href="/(auth)/forgot-password" asChild>
-            <Pressable hitSlop={6}>
-              <Text style={[styles.forgotLink, { color: colors.secondary }]}>
-                Forgot password?
-              </Text>
-            </Pressable>
-          </Link>
-        </View> */}
- 
-        {/* BUTTON */}
         <View style={{ marginTop: 24 }}>
           <Button
             label="Sign in"
@@ -154,7 +134,6 @@ export default function LoginScreen() {
           />
         </View>
  
-        {/* FOOTER */}
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
             New to AdeegFinder?{" "}
@@ -203,10 +182,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 8,
   },
-  forgotLink: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-  },
   footer: {
     marginTop: 32,
     flexDirection: "row",
@@ -222,4 +197,3 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
- 

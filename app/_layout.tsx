@@ -17,6 +17,7 @@ import messaging from "@react-native-firebase/messaging";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { setupFCM } from "@/src/services/notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -125,6 +126,8 @@ export default function RootLayout() {
   /* ---------------- FIREBASE NOTIFICATIONS ---------------- */
 
   useEffect(() => {
+
+  
     // 1. App is OPEN — Firebase won't auto-popup, so we show alert manually
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       console.log("📩 Foreground Notification:", remoteMessage);

@@ -4,7 +4,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
- 
+
 import {
   apiRequest,
   getToken,
@@ -12,19 +12,15 @@ import {
   setToken,
   setUser,
 } from "@/lib/api";
- 
+
 import type { User } from "@/lib/types";
-import { setupFCM } from "@/lib/fcm";
+import { setupNotifications} from "@/lib/notifications";
 
-
-
-/* ---------------- TYPES ---------------- */
- 
 type LoginPayload = {
   phone: string;
   password: string;
 };
- 
+
 type RegisterPayload = {
   name: string;
   phone: string;
@@ -32,7 +28,7 @@ type RegisterPayload = {
   city?: string;
   role: "client" | "worker";
 };
- 
+
 type AuthContextType = {
   user: User | null;
   token: string | null;
@@ -43,16 +39,16 @@ type AuthContextType = {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
- 
+
 /* ---------------- CONTEXT ---------------- */
- 
+
 const AuthContext = createContext<AuthContextType | null>(null);
- 
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState]      = useState<User | null>(null);
   const [token, setTokenState]    = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
- 
+
   /* Restore session on app launch */
   useEffect(() => {
     (async () => {
@@ -63,87 +59,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]);
         setTokenState(storedToken);
         setUserState(storedUser);
+        
+        // Setup notifications after restoring session (if admin)
+        if (storedToken && storedUser?.role === 'admin') {
+          await setupNotifications(storedToken);
+        }
       } finally {
         setIsLoading(false);
       }
     })();
   }, []);
- 
+
   /* ---------------- PERSIST SESSION ---------------- */
- 
+
   const persistSession = async (newToken: string, newUser: User) => {
     await Promise.all([setToken(newToken), setUser(newUser)]);
     setTokenState(newToken);
     setUserState(newUser);
   };
- 
+
   /* ---------------- LOGIN ---------------- */
- 
-const login = async (payload: LoginPayload) => {
-  const res = await apiRequest<{ token: string; user: User }>("/login", {
-    method: "POST",
-    body: {
-      phone: payload.phone,
-      password: payload.password,
-    },
-    auth: false,
-  });
 
-  await persistSession(res.token, res.user);
+  const login = async (payload: LoginPayload) => {
+    const res = await apiRequest<{ token: string; user: User }>("/login", {
+      method: "POST",
+      body: {
+        phone: payload.phone,
+        password: payload.password,
+      },
+      auth: false,
+    });
 
-  // ✅ SAFE FCM CALL
-  try {
-    await setupFCM();
-  } catch (error) {
-    console.log("FCM setup failed (ignored):", error);
-  }
-};
+    await persistSession(res.token, res.user);
+
+    // Setup notifications ONLY if user is admin
+    if (res.user.role === 'admin') {
+      await setupNotifications(res.token);
+    }
+  };
+
   /* ---------------- REGISTER ---------------- */
- 
-const register = async (payload: RegisterPayload) => {
-  const res = await apiRequest<{ token: string; user: User }>("/register", {
-    method: "POST",
-    body: {
-      name: payload.name,
-      phone: payload.phone,
-      password: payload.password,
-      city: payload.city ?? null,
-      role: payload.role,
-    },
-    auth: false,
-  });
 
-  await persistSession(res.token, res.user);
+  const register = async (payload: RegisterPayload) => {
+    const res = await apiRequest<{ token: string; user: User }>("/register", {
+      method: "POST",
+      body: {
+        name: payload.name,
+        phone: payload.phone,
+        password: payload.password,
+        city: payload.city ?? null,
+        role: payload.role,
+      },
+      auth: false,
+    });
 
-  // ✅ SAFE FCM CALL
-  try {
-    await setupFCM();
-  } catch (error) {
-    console.log("FCM setup failed (ignored):", error);
-  }
-};
+    await persistSession(res.token, res.user);
+
+    // Setup notifications ONLY if user is admin
+    if (res.user.role === 'admin') {
+      await setupNotifications(res.token);
+    }
+  };
+
   /* ---------------- LOGOUT ---------------- */
- 
+
   const logout = async () => {
     try {
       await apiRequest("/logout", { method: "POST" });
     } catch {
-      
+      // ignore
     } finally {
       await Promise.all([setToken(null), setUser(null)]);
       setTokenState(null);
       setUserState(null);
     }
   };
- 
+
   /* ---------------- REFRESH USER ---------------- */
- 
+
   const refreshUser = async () => {
     const res = await apiRequest<User>("/me");
     await setUser(res);
     setUserState(res);
   };
- 
+
   return (
     <AuthContext.Provider
       value={{
@@ -161,7 +160,7 @@ const register = async (payload: RegisterPayload) => {
     </AuthContext.Provider>
   );
 }
- 
+
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
