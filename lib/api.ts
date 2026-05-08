@@ -5,7 +5,7 @@ export const API_BASE_URL =
   "https://shaqo-api-master-jkif7q.laravel.cloud/api/v1";
 
 const TOKEN_KEY = "auth.token";
-const USER_KEY  = "auth.user";
+const USER_KEY = "auth.user";
 
 /* ---------------- STORAGE ---------------- */
 
@@ -36,6 +36,7 @@ export class ApiError extends Error {
     public data?: any
   ) {
     super(message);
+    this.name = 'ApiError';
   }
 }
 
@@ -51,7 +52,13 @@ export async function apiRequest<T>(
     headers?: Record<string, string>;
   } = {}
 ): Promise<T> {
-  const { method = "GET", body, auth = true, isFormData = false, headers: extraHeaders = {} } = options;
+  const {
+    method = "GET",
+    body,
+    auth = true,
+    isFormData = false,
+    headers: extraHeaders = {},
+  } = options;
 
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -65,7 +72,9 @@ export async function apiRequest<T>(
   // Only read from storage if no Authorization already provided
   if (auth && !headers["Authorization"]) {
     const token = await getToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
   }
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -77,18 +86,37 @@ export async function apiRequest<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(res.status, data?.message || "Error", data);
+    console.error(`API Error [${res.status}] ${path}:`, data);
+    throw new ApiError(res.status, data?.message || `Request failed with status ${res.status}`, data);
   }
 
   return data;
 }
 
-/* ---------------- SAVE PUSH TOKEN (ADD THIS) ---------------- */
+/* ---------------- SAVE PUSH TOKEN ---------------- */
 
 export async function savePushToken(token: string) {
-  return apiRequest('/save-token', {
-    method: 'POST',
-    body: { token },
-    auth: true,
-  });
+  try {
+    const userToken = await getToken();
+    if (!userToken) {
+      console.log('User not authenticated, skipping push token save');
+      return null;
+    }
+
+    const response = await apiRequest('/save-token', {
+      method: 'POST',
+      body: { token },
+      auth: true,
+    });
+
+    console.log('Push token saved to server');
+    return response;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error(`Failed to save push token: ${error.message}`);
+    } else {
+      console.error('Failed to save push token:', error);
+    }
+    throw error;
+  }
 }

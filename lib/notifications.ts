@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { apiRequest } from './api';
+import { savePushToken } from './api';
 
 // Configure notification handler for foreground messages
 Notifications.setNotificationHandler({
@@ -8,13 +8,13 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
-    shouldShowBanner: true, 
-    shouldShowList: true,
+    shouldShowBanner:true,
+    shouldShowList:true
   }),
 });
 
 // Register for push notifications and send token to backend
-export async function setupNotifications(authToken: string) {
+export async function setupNotifications() {
   try {
     // Request permission
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -30,22 +30,22 @@ export async function setupNotifications(authToken: string) {
       return;
     }
 
-    // Get Expo token
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PROJECT_ID, // Add this to your .env
+    // Get Expo push token
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: process.env.EXPO_PROJECT_ID,
     });
 
-    console.log('Expo Push Token:', token.data);
+    console.log('Expo Push Token:', tokenData.data);
 
-    // Send token to backend - ONLY for admin users
-    await apiRequest('/push-token', {
-      method: 'POST',
-      body: { token: token.data },
-      auth: true,
-      headers: { Authorization: `Bearer ${authToken}` }
-    });
+    // Save token to backend for ALL authenticated users
+    try {
+      await savePushToken(tokenData.data);
+      console.log('Push token saved successfully');
+    } catch (error) {
+      console.warn('Failed to save push token to server:', error);
+    }
 
-    // Android channel setup
+    // Android notification channel setup
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -55,22 +55,23 @@ export async function setupNotifications(authToken: string) {
       });
     }
 
-    // Add notification listener
-    const subscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
+    // Handle notifications received while app is in foreground
+    const receivedSubscription = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received in foreground:', notification);
     });
 
+    // Handle notification taps
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
-      // Handle navigation based on notification data
+      console.log('Notification tapped:', data);
+      
       if (data?.type === 'new_booking') {
-        // Navigate to bookings screen
-        console.log('Navigate to booking:', data.booking_id);
+        console.log('Should navigate to booking:', data.booking_id);
       }
     });
 
     return () => {
-      subscription.remove();
+      receivedSubscription.remove();
       responseSubscription.remove();
     };
   } catch (error) {

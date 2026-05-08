@@ -3,6 +3,7 @@ import React, {
   useContext,
   useEffect,
   useState,
+  useCallback,
 } from "react";
 
 import {
@@ -11,10 +12,11 @@ import {
   getUser,
   setToken,
   setUser,
+  savePushToken,
 } from "@/lib/api";
 
 import type { User } from "@/lib/types";
-import { setupNotifications} from "@/lib/notifications";
+import { setupNotifications } from "@/lib/notifications";
 
 type LoginPayload = {
   phone: string;
@@ -45,8 +47,8 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUserState]      = useState<User | null>(null);
-  const [token, setTokenState]    = useState<string | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
+  const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   /* Restore session on app launch */
@@ -57,13 +59,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           getToken(),
           getUser(),
         ]);
-        setTokenState(storedToken);
-        setUserState(storedUser);
         
-        // Setup notifications after restoring session (if admin)
-        if (storedToken && storedUser?.role === 'admin') {
-          await setupNotifications(storedToken);
+        if (storedToken && storedUser) {
+          setTokenState(storedToken);
+          setUserState(storedUser);
+          
+          // Setup notifications for ALL authenticated users
+          setupNotifications().catch(err => 
+            console.warn('Notification setup failed:', err)
+          );
         }
+      } catch (error) {
+        console.error('Session restore failed:', error);
       } finally {
         setIsLoading(false);
       }
@@ -80,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /* ---------------- LOGIN ---------------- */
 
-  const login = async (payload: LoginPayload) => {
+  const login = useCallback(async (payload: LoginPayload) => {
     const res = await apiRequest<{ token: string; user: User }>("/login", {
       method: "POST",
       body: {
@@ -92,15 +99,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await persistSession(res.token, res.user);
 
-    // Setup notifications ONLY if user is admin
-    if (res.user.role === 'admin') {
-      await setupNotifications(res.token);
-    }
-  };
+    // Setup notifications for ALL users after login
+    setupNotifications().catch(err => 
+      console.warn('Notification setup failed:', err)
+    );
+  }, []);
 
   /* ---------------- REGISTER ---------------- */
 
-  const register = async (payload: RegisterPayload) => {
+  const register = useCallback(async (payload: RegisterPayload) => {
     const res = await apiRequest<{ token: string; user: User }>("/register", {
       method: "POST",
       body: {
@@ -115,33 +122,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await persistSession(res.token, res.user);
 
-    // Setup notifications ONLY if user is admin
-    if (res.user.role === 'admin') {
-      await setupNotifications(res.token);
-    }
-  };
+    // Setup notifications for ALL users after registration
+    setupNotifications().catch(err => 
+      console.warn('Notification setup failed:', err)
+    );
+  }, []);
 
   /* ---------------- LOGOUT ---------------- */
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiRequest("/logout", { method: "POST" });
-    } catch {
-      // ignore
+    } catch (error) {
+      console.warn('Logout API call failed:', error);
     } finally {
       await Promise.all([setToken(null), setUser(null)]);
       setTokenState(null);
       setUserState(null);
     }
-  };
+  }, []);
 
   /* ---------------- REFRESH USER ---------------- */
 
-  const refreshUser = async () => {
-    const res = await apiRequest<User>("/me");
-    await setUser(res);
-    setUserState(res);
-  };
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await apiRequest<User>("/me");
+      await setUser(res);
+      setUserState(res);
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  }, []);
 
   return (
     <AuthContext.Provider
