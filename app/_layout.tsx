@@ -37,10 +37,10 @@ function AuthGate() {
 
   // 🔔 Setup notifications once user is logged in
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated) {
       setupNotifications();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isLoading) return;
