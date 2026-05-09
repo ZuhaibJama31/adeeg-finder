@@ -11,7 +11,7 @@
 const http = require("http");
 const net  = require("net");
 
-const TARGET_HOST = "127.0.0.1";
+const TARGET_HOST = "192.168.100.187";
 const TARGET_PORT = 8081;
 const LISTEN_PORT = parseInt(process.env.PORT || "5000", 10);
 

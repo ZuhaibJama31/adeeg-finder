@@ -38,7 +38,7 @@ export async function registerForPushNotificationsAsync() {
 
   // Get the Expo push token
   token = (await Notifications.getExpoPushTokenAsync({
-    projectId: 'YOUR_EXPO_PROJECT_ID', // We'll get this in Step 5
+    projectId: 'dc437936-1df3-4c71-b939-d48f2fc2dcd1',
   })).data;
 
   // For Android, set up notification channel

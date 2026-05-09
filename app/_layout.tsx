@@ -13,11 +13,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import messaging from "@react-native-firebase/messaging";
-
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { setupFCM } from "@/src/services/notifications";
+import { setupNotifications } from "@/lib/notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,6 +34,13 @@ function AuthGate() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // 🔔 Setup notifications once user is logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setupNotifications();
+    }
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -122,36 +127,6 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
-
-  /* ---------------- FIREBASE NOTIFICATIONS ---------------- */
-
-  useEffect(() => {
-
-  
-    // 1. App is OPEN — Firebase won't auto-popup, so we show alert manually
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log("📩 Foreground Notification:", remoteMessage);
-      alert(
-        (remoteMessage.notification?.title ?? "Notification") +
-          "\n" +
-          (remoteMessage.notification?.body ?? "")
-      );
-    });
-
-    // 2. App was MINIMIZED — user tapped the notification
-    messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log("📲 Opened from background:", remoteMessage.data);
-    });
-
-    // 3. App was CLOSED — user tapped the notification
-    messaging().getInitialNotification().then(remoteMessage => {
-      if (remoteMessage) {
-        console.log("🚀 Opened from killed state:", remoteMessage.data);
-      }
-    });
-
-    return unsubscribe; // only the foreground listener needs cleanup
-  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 
